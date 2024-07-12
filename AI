@@ -1,0 +1,158 @@
+# image-processing
+import matplotlib.pyplot as plt
+import cv2
+import numpy as np
+import os
+from sklearn import tree
+import streamlit as st
+import pywhatkit as kit
+import datetime
+def send_whatsapp_message(phone_number, message):
+    now = datetime.datetime.now()
+    send_time = now + datetime.timedelta(minutes=2)
+    hour = send_time.hour
+    minute = send_time.minute
+    
+    kit.sendwhatmsg(phone_number, message, hour, minute)
+def calculate_severity_rate(mean, variance, std_dev, min_val, max_val):
+    weight_mean = 0.2
+    weight_variance = 0.2
+    weight_std_dev = 0.2
+    weight_min_val = 0.2
+    weight_max_val = 0.2
+    
+    severity_rate = (weight_mean * mean +
+                     weight_variance * variance +
+                     weight_std_dev * std_dev +
+                     weight_min_val * min_val +
+                     weight_max_val * max_val)
+    
+    return severity_rate
+image = cv2.imread('D:/internship/intern/dataset/no/img (1).jpg')
+st.image(image)
+width = 512
+height = 512
+dimensions = (width, height)
+resized_image = cv2.resize(image, dimensions, interpolation=cv2.INTER_AREA)
+st.image(resized_image)
+mean1=np.mean(resized_image)
+variance1 = np.var(resized_image)
+std_dev1 = np.std(resized_image)
+min_val1 = np.min(resized_image)
+max_val1 = np.max(resized_image)
+severity_rate1 = calculate_severity_rate(mean1, variance1, std_dev1, min_val1, max_val1)
+print(f"Mean: {mean1}")
+print(f"Variance: {variance1}")
+print(f"Standard Deviation: {std_dev1}")
+print(f"Minimum Value: {min_val1}")
+print(f"Maximum Value: {max_val1}")
+st.write(f"Severity Rate: {severity_rate1}")
+severity_threshold = 100
+if severity_rate1 > severity_threshold:
+    st.text("Tumor classified as SEVERE")
+else:
+    st.text("Tumor classified as NON-SEVERE")
+a = np.array([mean1, variance1, std_dev1, min_val1, max_val1])
+print(f"test: {a}")
+st.write(a)
+plt.title("Original Image")
+plt.imshow(image)
+plt.title("Resized Image")
+plt.imshow(resized_image)
+def process_image(image_path):
+    image = cv2.imread(image_path)
+    width = 512
+    height = 512
+    dimensions = (width, height)
+    resized_image = cv2.resize(image, dimensions, interpolation=cv2.INTER_AREA)
+    mean = np.mean(resized_image)
+    variance = np.var(resized_image)
+    std_dev = np.std(resized_image)
+    min_val = np.min(resized_image)
+    max_val = np.max(resized_image)
+   # severity_rate = calculate_severity_rate(mean, variance, std_dev, min_val, max_val)
+    return resized_image, mean, variance, std_dev, min_val, max_val
+image_directory = 'D:/internship/intern/training'
+results = []
+labels = []
+trains=[]
+
+for i in range(1, 51):
+    image_path = os.path.join(image_directory, f'img ({i}).jpg')
+    resized_image, mean, variance, std_dev, min_val, max_val = process_image(image_path)
+    results.append([mean, variance, std_dev, min_val, max_val])
+    plt.figure(figsize=(10, 5))
+    plt.subplot(1, 2, 1)
+    plt.imshow(cv2.cvtColor(cv2.imread(image_path), cv2.COLOR_BGR2RGB))
+    plt.title('Original Image')
+    plt.subplot(1, 2, 2)
+    plt.imshow(cv2.cvtColor(resized_image, cv2.COLOR_BGR2RGB))
+    plt.title('Resized Image')
+    plt.show()
+    print(f"Image {i}:")
+    print(f"Mean: {mean}")
+    print(f"Variance: {variance}")
+    print(f"Standard Deviation: {std_dev}")
+    print(f"Minimum Value: {min_val}")
+    print(f"Maximum Value: {max_val}")
+    print(f"test: {np.array([mean, variance, std_dev, min_val, max_val])}")
+    train = np.array(results)
+    trains.append(train)
+    print(f"All results array: \n{train}")
+    label = 0 if i <= 25 else 1
+    labels.append(label)
+    print(f"Label: {label}\n")
+    labels_array = np.array(labels)
+    print(f"Labels array: \n{labels_array}")
+st.write(train)
+clf = tree.DecisionTreeClassifier()
+clf = clf.fit(train, labels_array)
+classval = clf.predict([a]) 
+if classval == 0:
+    st.text("non tumor")
+else :
+    st.text("tumor")
+    classval = clf.predict([np.array([mean1, variance1, std_dev1, min_val1, max_val1, severity_rate1])])
+if classval == 0:
+    st.text("Predicted: NON-SEVERE")
+else:
+    st.text("Predicted: SEVERE")
+def chatbot():
+    st.write("Hi! I am AI!!! How can I assist you?")
+    
+    a1 = st.text_input("Enter here: ")
+    res = ""
+    
+    if "hi" in a1 or "hello" in a1:
+        res = "Chatbot: Hello! How can I help you?"
+    elif "how are you" in a1:
+        res = "Chatbot: I'm fine. How can I help you today!"
+    elif "i have a tumor what can i do" in a1:
+        res = "Chatbot: Don't use tobacco. Eat a healthy diet. Maintain a healthy weight, be physically active. Get vaccinated. ..."
+    elif "i have checked for tumor, the result becomes negative" in a1:
+        res = "Chatbot: Thank goodness! Receiving a negative result on a tumor test can be a huge relief. It's essential to prioritize your health, and getting checked is a significant step."
+    elif "bye" in a1 or "exit" in a1:
+        res = "Chatbot: Goodbye! Have a great day!"
+    else:
+        res = "Chatbot: I'm sorry, I don't understand that. Can you please rephrase?"
+    
+    st.write(res)
+    return res
+
+if __name__ == "__main__":
+    res = chatbot()
+    phone_number = "+91 9791274874" 
+    
+    if st.button("Send WhatsApp Message"):
+        if isinstance(res, str) and res:  
+            send_whatsapp_message(phone_number, res)
+            st.write("Message sent!")
+        else:
+            st.write("No valid message to send.")
+            
+            
+            
+            
+            
+            
+            
